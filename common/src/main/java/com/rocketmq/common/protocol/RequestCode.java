@@ -9,6 +9,8 @@ package com.rocketmq.common.protocol;
  * @version RequestCode.java, v 0.1 2020-10-10 2:36 下午
  */
 public class RequestCode {
+    public static final int SEND_MESSAGE = 10;
+
     /**
      * 注册 Broker
      * Broker => Namesrv
@@ -23,4 +25,5 @@ public class RequestCode {
     public static final int UNREGISTER_CLIENT = 35;
 
     public static final int GET_ROUTEINTO_BY_TOPIC = 105;
+
 }

@@ -29,7 +29,7 @@ import java.util.List;
 public interface MQProducer extends MQAdmin {
     void start() throws MQClientException;
 
-    //void shutdown();
+    void shutdown();
 
     //List<MessageQueue> fetchPublishMessageQueues(final String topic) throws MQClientException;
 

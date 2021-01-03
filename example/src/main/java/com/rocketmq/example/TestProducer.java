@@ -6,7 +6,9 @@ package com.rocketmq.example;
 
 import com.rocketmq.client.exception.MQClientException;
 import com.rocketmq.client.producer.DefaultMQProducer;
+import com.rocketmq.client.producer.SendResult;
 import com.rocketmq.common.MixAll;
+import com.rocketmq.common.message.Message;
 
 /**
  *
@@ -21,6 +23,18 @@ public class TestProducer {
 
         producer.start();
 
+        for (int i = 0; i < 1; i++) {
+            try {
+                Message msg = new Message("topic", "tagA", "key11", "helloWorld".getBytes());
+                SendResult sendResult = producer.send(msg);
+                System.out.printf("%s%n", sendResult);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        producer.shutdown();
 
     }
 }

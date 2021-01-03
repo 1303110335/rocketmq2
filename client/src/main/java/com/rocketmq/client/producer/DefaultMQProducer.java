@@ -167,6 +167,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.defaultMQProducerImpl.start();
     }
 
+    @Override
+    public void shutdown() {
+        this.defaultMQProducerImpl.shutdown();
+    }
+
     /**
 //     * Fetch message queues of topic <code>topic</code>, to which we may send/publish messages.
 //     *

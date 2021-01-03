@@ -30,6 +30,7 @@ import com.rocketmq.common.protocol.route.TopicRouteData;
 import com.rocketmq.remoting.RPCHook;
 import com.rocketmq.remoting.RemotingCommand;
 import com.rocketmq.remoting.netty.NettyClientConfig;
+import com.sun.corba.se.impl.encoding.BufferManagerWrite;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -347,7 +348,25 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 100);
+                    // 使用默认TopicKey获取TopicRouteData。
+                    // 当broker开启自动创建topic开关时，会使用MixAll.DEFAULT_TOPIC进行创建。
+                    // 当producer的createTopic为MixAll.DEFAULT_TOPIC时，则可以获得TopicRouteData。
+                    // 目的：用于新的topic，发送消息时，未创建路由信息，先使用createTopic的路由信息，等到发送到broker时，进行自动创建。
+                    // @see TopicConfigManager
+                    if (isDefault && defaultMQProducer != null) {
+
+                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
+                        if (topicRouteData != null) {
+                            for (QueueData data : topicRouteData.getQueueDatas()) {
+                                int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
+                                data.setReadQueueNums(queueNums);
+                                data.setWriteQueueNums(queueNums);
+                            }
+                        }
+                    } else {
+                        topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
+                    }
+
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
@@ -372,7 +391,14 @@ public class MQClientInstance {
                                 }
                             }
 
-                            // @TODO 更新订阅者(消费者)里的队列信息,Slave在注册Broker时不会生成QueueData,但会生成BrokerData
+                            // 更新订阅者(消费者)里的队列信息,Slave在注册Broker时不会生成QueueData,但会生成BrokerData
+                            Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
+                            for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
+                                MQConsumerInner impl = entry.getValue();
+                                if (impl != null) {
+                                    impl.updateTopicSubscribeInfo(topic, subscribeInfo);
+                                }
+                            }
 
                             log.info("topicRouteTable.put TopicRouteData[{}]", cloneTopicRouteData);
                             this.topicRouteTable.put(topic, cloneTopicRouteData);
@@ -391,6 +417,28 @@ public class MQClientInstance {
             this.lockNamesrv.unlock();
         }
         return false;
+    }
+
+    /**
+     * 提取TopicRouteData内的QueueData生成MessageQueue,也就是Topic的订阅队列信息
+     *
+     * @param topic
+     * @param route
+     * @return
+     */
+    private Set<MessageQueue> topicRouteData2TopicSubscribeInfo(String topic, TopicRouteData route) {
+        Set<MessageQueue> mqList = new HashSet<>();
+        List<QueueData>  qds = route.getQueueDatas();
+        for (QueueData qd : qds) {
+            if (PermName.isReadable(qd.getPerm())) {
+                for (int i = 0; i < qd.getPerm(); i++) {
+                    MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
+                    mqList.add(mq);
+                }
+            }
+        }
+
+        return mqList;
     }
 
     /**
@@ -472,5 +520,18 @@ public class MQClientInstance {
 
     public String getClientId() {
         return clientId;
+    }
+
+    public String findBrokerAddressInPublish(String brokerName) {
+        HashMap<Long, String> map = this.brokerAddrTable.get(brokerName);
+        if (map != null && !map.isEmpty()) {
+            return map.get(MixAll.MASTER_ID);
+        }
+
+        return null;
+    }
+
+    public MQClientAPIImpl getMQClientAPIImpl() {
+        return mQClientAPIImpl;
     }
 }

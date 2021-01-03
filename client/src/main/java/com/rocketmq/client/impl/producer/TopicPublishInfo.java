@@ -87,4 +87,36 @@ public class TopicPublishInfo {
     public void setTopicRouteData(TopicRouteData topicRouteData) {
         this.topicRouteData = topicRouteData;
     }
+
+    public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+        int index = this.sendWhichQueue.getAndIncrement();
+        if (lastBrokerName == null) {
+            return selectOneMessageQueue();
+        } else {
+            for (int i = 0; i < this.messageQueueList.size(); i++) {
+                int pos = Math.abs(index) % this.messageQueueList.size();
+                if (pos < 0) {
+                    pos = 0;
+                }
+                MessageQueue messageQueue = this.messageQueueList.get(index);
+                if (messageQueue.getBrokerName().equals(lastBrokerName)) {
+                    return messageQueue;
+                }
+            }
+            return selectOneMessageQueue();
+        }
+    }
+
+    /**
+     * 直接选择上次发送队列的下一位
+     * @return
+     */
+    public MessageQueue selectOneMessageQueue() {
+        int index = this.sendWhichQueue.getAndIncrement();
+        int pos = Math.abs(index) % this.messageQueueList.size();
+        if (pos < 0) {
+            pos = 0;
+        }
+        return this.messageQueueList.get(index);
+    }
 }
