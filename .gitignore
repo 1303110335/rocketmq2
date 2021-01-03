@@ -32,3 +32,12 @@ gen
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
+broker/target/generated-sources/
+broker/target/generated-test-sources/
+client/target/generated-sources/
+common/target/generated-sources/
+example/target/generated-sources/
+namesrv/target/generated-sources/
+remoting/target/generated-sources/
+remoting/target/generated-test-sources/
+store/target/generated-sources/
